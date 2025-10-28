@@ -12,7 +12,7 @@ require('dotenv').config()
 // middleware
 app.use(cors())
 
-
+app.use(express.json());
 
 
 
@@ -37,6 +37,7 @@ async function run() {
 
 
 const mansCollection= client.db('manstyle').collection('manproducts')
+const ordersCollection = client.db("manstyle").collection("orders");
 
 
 
@@ -85,6 +86,35 @@ const mansCollection= client.db('manstyle').collection('manproducts')
 
     res.send(related);
   })
+
+
+ // ✅ POST order
+
+    app.post('/orders', async (req, res) => {
+      try {
+        const order = req.body;
+        const result = await ordersCollection.insertOne(order);
+        if (result.insertedId) {
+          res.send({ success: true, orderId: result.insertedId });
+        } else {
+          res.send({ success: false });
+        }
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ success: false, error: error.message });
+      }
+    });
+
+
+
+    // ✅ GET orders by user email
+    app.get("/orders/:email", async (req, res) => {
+      const email = req.params.email;
+      const orders = await ordersCollection.find({ userEmail: email }).toArray();
+      res.send(orders);
+    });
+
+
 
 
   } finally {
