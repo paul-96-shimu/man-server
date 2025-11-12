@@ -34,11 +34,12 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    // await client.connect();
+    await client.connect();
 
 
     const mansCollection = client.db('manstyle').collection('manproducts')
     const ordersCollection = client.db("manstyle").collection("orders");
+    const usersCollection = client.db("manstyle").collection("users");
 
 
 
@@ -108,6 +109,77 @@ async function run() {
 
 
 
+    // Get all orders (optional, for admin view)
+    app.get("/orders", async (req, res) => {
+      try {
+        const orders = await ordersCollection.find().toArray();
+        console.log("✅ All orders fetched:", orders);
+        res.send(orders);
+      } catch (error) {
+        console.error("❌ Error fetching all orders:", error);
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+
+
+
+
+
+    app.get("/orders/pending", async (req, res) => {
+      console.log("✅ /orders/pending route hit");
+      try {
+        const pendingOrders = await ordersCollection.find({ status: "pending" }).toArray();
+        console.log("Pending orders:", pendingOrders);
+        res.send(pendingOrders);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+
+
+
+     app.get("/orders/approved", async (req, res) => {
+      const approvedOrders = await ordersCollection.find({ status: "approved" }).toArray();
+      res.send(approvedOrders);
+    });
+
+
+
+    app.put("/orders/approve/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const result = await ordersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { status: "approved" } }
+        );
+        res.send(result);
+      } catch (error) {
+        console.error("Error approving order:", error);
+        res.status(500).send({ error: "Failed to approve order" });
+      }
+    });
+
+app.put("/orders/reject/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+    const result = await ordersCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { status: "rejected" } }
+    );
+    res.send(result);
+  } catch (error) {
+    console.error("❌ Failed to reject order:", error);
+    res.status(500).send({ error: "Failed to reject order" });
+  }
+});
+
+
+
+
+
     // ✅ GET orders by user email
     app.get("/orders/:email", async (req, res) => {
       const email = req.params.email;
@@ -118,50 +190,121 @@ async function run() {
 
 
 
+   
 
 
 
 
-  // payment api
-
-    // app.post("/create-checkout-session", async (req, res) => {
-    //   const session = await stripe.checkout.sessions.create({
-    //     ui_mode: "custom",
-    //     line_items: [{
-    //       price_data: {
-    //         product_data: {
-    //           name: "Your Product",
-    //         },
-    //         currency: "usd",
-    //         unit_amount: 2000,
-    //       },
-    //       quantity: 1,
-    //     }],
-    //     mode: "payment",
-    //     return_url: `${YOUR_DOMAIN}/complete?session_id={CHECKOUT_SESSION_ID}`,
-    //   });
-
-    //   res.send({ clientSecret: session.client_secret });
-    // });
+    // payment api
 
 
-app.post("/create-payment-intent", async (req, res) => {
-  try {
-    const { price } = req.body;
-    const amount = Math.round(price * 100); // USD cents
+    app.post("/create-payment-intent", async (req, res) => {
+      try {
+        const { price } = req.body;
+        const amount = Math.round(price * 100); // USD cents
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount,
-      currency: "usd",
-      payment_method_types: ["card"],
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount,
+          currency: "usd",
+          payment_method_types: ["card"],
+        });
+
+        res.send({ clientSecret: paymentIntent.client_secret });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ error: error.message });
+      }
     });
 
-    res.send({ clientSecret: paymentIntent.client_secret });
-  } catch (error) {
-    console.error(error);
-    res.status(500).send({ error: error.message });
-  }
-});
+
+    // 💾 1️⃣ পেমেন্ট ইনফো ডাটাবেজে সেভ করা
+    app.post("/payments", async (req, res) => {
+      try {
+        const paymentInfo = req.body;
+        const paymentsCollection = client.db("manstyle").collection("payments");
+        const result = await paymentsCollection.insertOne(paymentInfo);
+        res.send({ success: true, insertedId: result.insertedId });
+      } catch (error) {
+        console.error("Payment save error:", error);
+        res.status(500).send({ success: false, error: error.message });
+      }
+    });
+
+    // 📤 2️⃣ ইউজারের সব পেমেন্ট দেখা
+    app.get("/payments", async (req, res) => {
+      try {
+        const email = req.query.email;
+        const paymentsCollection = client.db("manstyle").collection("payments");
+
+        const query = email ? { userEmail: email } : {};
+        const payments = await paymentsCollection.find(query).toArray();
+
+        res.send(payments);
+      } catch (error) {
+        console.error("Get payments error:", error);
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+
+    // ✅ Get all users with optional search
+
+
+
+    app.post("/users", async (req, res) => {
+      try {
+        const user = req.body;
+        if (!user.email) return res.status(400).send({ error: "Email is required" });
+
+        // আগে check করো user আগে থেকে আছে কি না
+        const existingUser = await usersCollection.findOne({ email: user.email });
+        if (existingUser) {
+          return res.send({ message: "User already exists" });
+        }
+
+        const result = await usersCollection.insertOne(user);
+        res.send({ success: true, userId: result.insertedId });
+      } catch (error) {
+        console.error("Error adding user:", error);
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+
+
+    app.get("/users", async (req, res) => {
+      try {
+        const search = req.query.search || "";
+        const query = {
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+          ],
+        };
+        const users = await usersCollection.find(query).toArray();
+        res.send(users);
+      } catch (error) {
+        console.error("Get users error:", error);
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+
+
+    // ✅ Make user admin
+    app.put("/users/role/admin/:email", async (req, res) => {
+      try {
+        const email = req.params.email;
+        const result = await usersCollection.updateOne(
+          { email },
+          { $set: { role: "admin" } }
+        );
+        res.send({ success: result.modifiedCount > 0 });
+      } catch (error) {
+        console.error("Update user role error:", error);
+        res.status(500).send({ error: error.message });
+      }
+    });
 
 
 
