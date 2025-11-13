@@ -141,7 +141,7 @@ async function run() {
 
 
 
-     app.get("/orders/approved", async (req, res) => {
+    app.get("/orders/approved", async (req, res) => {
       const approvedOrders = await ordersCollection.find({ status: "approved" }).toArray();
       res.send(approvedOrders);
     });
@@ -162,19 +162,19 @@ async function run() {
       }
     });
 
-app.put("/orders/reject/:id", async (req, res) => {
-  try {
-    const id = req.params.id;
-    const result = await ordersCollection.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { status: "rejected" } }
-    );
-    res.send(result);
-  } catch (error) {
-    console.error("❌ Failed to reject order:", error);
-    res.status(500).send({ error: "Failed to reject order" });
-  }
-});
+    app.put("/orders/reject/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const result = await ordersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { status: "rejected" } }
+        );
+        res.send(result);
+      } catch (error) {
+        console.error("❌ Failed to reject order:", error);
+        res.status(500).send({ error: "Failed to reject order" });
+      }
+    });
 
 
 
@@ -190,7 +190,7 @@ app.put("/orders/reject/:id", async (req, res) => {
 
 
 
-   
+
 
 
 
@@ -289,6 +289,20 @@ app.put("/orders/reject/:id", async (req, res) => {
       }
     });
 
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      try {
+        const user = await usersCollection.findOne({ email });
+        if (user) {
+          res.send({ role: user.role || "user" });
+        } else {
+          res.send({ role: "user" });
+        }
+      } catch (error) {
+        console.error("❌ Error fetching user role:", error);
+        res.status(500).send({ error: error.message });
+      }
+    });
 
 
     // ✅ Make user admin
@@ -307,6 +321,53 @@ app.put("/orders/reject/:id", async (req, res) => {
     });
 
 
+
+
+    // ✅ Make user admin (by ID or email)
+    app.put("/users/make-admin/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        // ObjectId হলে ID দিয়ে, নাহলে email দিয়ে খোঁজা
+        const query = ObjectId.isValid(id)
+          ? { _id: new ObjectId(id) }
+          : { email: id };
+
+        const updateDoc = { $set: { role: "admin" } };
+        const result = await usersCollection.updateOne(query, updateDoc);
+
+        if (result.modifiedCount > 0) {
+          res.send({ success: true, message: "User promoted to admin successfully ✅" });
+        } else {
+          res.send({ success: false, message: "No user found or already admin" });
+        }
+      } catch (error) {
+        console.error("❌ Update user role error:", error);
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+
+
+
+    app.put("/users/remove-admin/:id", async (req, res) => {
+      const { id } = req.params;
+      try {
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { role: "user" } }
+        );
+
+        if (result.modifiedCount > 0) {
+          res.send({ success: true, message: "Admin role removed" });
+        } else {
+          res.send({ success: false, message: "No changes made" });
+        }
+      } catch (error) {
+        console.error("Error removing admin:", error);
+        res.status(500).send({ success: false, message: "Server error" });
+      }
+    });
 
 
 
