@@ -43,6 +43,18 @@ async function run() {
 
 
 
+
+
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (!user || user.role !== 'admin') {
+        return res.status(403).send({ error: true, message: 'forbidden access' });
+      } next();
+    }
+
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
@@ -126,7 +138,7 @@ async function run() {
 
 
 
-    app.get("/orders/pending", async (req, res) => {
+    app.get("/orders/pending", verifyAdmin, async (req, res) => {
       console.log("✅ /orders/pending route hit");
       try {
         const pendingOrders = await ordersCollection.find({ status: "pending" }).toArray();
@@ -141,7 +153,7 @@ async function run() {
 
 
 
-    app.get("/orders/approved", async (req, res) => {
+    app.get("/orders/approved", verifyAdmin, async (req, res) => {
       const approvedOrders = await ordersCollection.find({ status: "approved" }).toArray();
       res.send(approvedOrders);
     });
@@ -178,6 +190,49 @@ async function run() {
 
 
 
+    app.get("/orders/single/:id", async (req, res) => {
+      const id = req.params.id;
+
+      try {
+        const order = await ordersCollection.findOne({ _id: new ObjectId(id) });
+
+        res.send(order);
+      } catch (error) {
+        res.status(500).send({ message: "Error loading order", error });
+      }
+    });
+
+
+
+
+app.put("/orders/update/:id", async (req, res) => {
+  const id = req.params.id;
+
+  // Validate ObjectId
+  if (!ObjectId.isValid(id)) {
+    return res.status(400).send({ message: "Invalid order ID" });
+  }
+
+  // Remove _id from update data
+  const { _id, ...updatedData } = req.body;
+
+  try {
+    const result = await ordersCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updatedData }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(404).send({ message: "Order not found or nothing updated" });
+    }
+
+    res.send({ message: "Order updated successfully" });
+  } catch (error) {
+    console.error("Update error:", error);
+    res.status(500).send({ message: "Internal Server Error", error });
+  }
+});
+
 
 
     // ✅ GET orders by user email
@@ -191,6 +246,31 @@ async function run() {
 
 
 
+
+    // Update Order API
+
+
+
+
+
+
+
+    // Delete Order API
+    app.delete("/orders/delete/:id", async (req, res) => {
+      const id = req.params.id;
+
+      try {
+        const result = await ordersCollection.deleteOne({ _id: new ObjectId(id) });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Order not found" });
+        }
+
+        res.send({ message: "Order deleted successfully" });
+      } catch (error) {
+        res.status(500).send({ message: "Error deleting order", error });
+      }
+    });
 
 
 
@@ -306,7 +386,7 @@ async function run() {
 
 
     // ✅ Make user admin
-    app.put("/users/role/admin/:email", async (req, res) => {
+    app.put("/users/role/admin/:email", verifyAdmin, async (req, res) => {
       try {
         const email = req.params.email;
         const result = await usersCollection.updateOne(
@@ -397,3 +477,6 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   console.log(`man style server listening on port ${port}`)
 })
+
+
+// module-68-6 end
