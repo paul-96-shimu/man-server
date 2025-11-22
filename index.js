@@ -40,6 +40,7 @@ async function run() {
     const mansCollection = client.db('manstyle').collection('manproducts')
     const ordersCollection = client.db("manstyle").collection("orders");
     const usersCollection = client.db("manstyle").collection("users");
+        const reviewsCollection = client.db("manstyle").collection("reviews");
 
 
 
@@ -331,24 +332,124 @@ app.put("/orders/update/:id", async (req, res) => {
 
 
 
-    app.post("/users", async (req, res) => {
-      try {
-        const user = req.body;
-        if (!user.email) return res.status(400).send({ error: "Email is required" });
 
-        // আগে check করো user আগে থেকে আছে কি না
-        const existingUser = await usersCollection.findOne({ email: user.email });
-        if (existingUser) {
-          return res.send({ message: "User already exists" });
-        }
+app.post("/users", async (req, res) => {
+  try {
+    const { name, email, phone, image } = req.body;
 
-        const result = await usersCollection.insertOne(user);
-        res.send({ success: true, userId: result.insertedId });
-      } catch (error) {
-        console.error("Error adding user:", error);
-        res.status(500).send({ error: error.message });
-      }
-    });
+    // Email required check
+    if (!email) return res.status(400).send({ error: "Email is required" });
+
+    // Check if user already exists
+    const existingUser = await usersCollection.findOne({ email: email });
+    if (existingUser) {
+      return res.status(200).send({ message: "User already exists", user: existingUser });
+    }
+
+    // Prepare user object
+    const newUser = {
+      name: name || "User",
+      email,
+      phone: phone || "",
+      image: image || "",
+      createdAt: new Date()
+    };
+
+    // Insert into MongoDB
+    const result = await usersCollection.insertOne(newUser);
+
+    res.status(201).send({ success: true, userId: result.insertedId, user: newUser });
+  } catch (error) {
+    console.error("Error adding user:", error);
+    res.status(500).send({ error: error.message });
+  }
+});
+
+
+
+
+
+
+app.put("/users/:email", async (req, res) => {
+  try {
+    const email = req.params.email;
+    const updatedData = req.body;
+
+    const result = await usersCollection.updateOne(
+      { email },
+      { $set: updatedData }
+    );
+
+    res.send({ success: true, result });
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+
+
+
+
+
+
+
+    // app.post("/users", async (req, res) => {
+    //   try {
+    //     const user = req.body;
+    //     if (!user.email) return res.status(400).send({ error: "Email is required" });
+
+    //     // আগে check করো user আগে থেকে আছে কি না
+    //     const existingUser = await usersCollection.findOne({ email: user.email });
+    //     if (existingUser) {
+    //       return res.send({ message: "User already exists" });
+    //     }
+
+    //     const result = await usersCollection.insertOne(user);
+    //     res.send({ success: true, userId: result.insertedId });
+    //   } catch (error) {
+    //     console.error("Error adding user:", error);
+    //     res.status(500).send({ error: error.message });
+    //   }
+    // });
+
+
+
+
+
+
+// app.post("/users", async (req, res) => {
+//   try {
+//     const { name, email, phone, image } = req.body;
+
+//     if (!email) {
+//       return res.status(400).send({ error: "Email is required" });
+//     }
+
+//     // check if user already exists
+//     const existingUser = await usersCollection.findOne({ email });
+//     if (existingUser) {
+//       return res.send({ message: "User already exists" });
+//     }
+
+//     // Clean user object
+//     const newUser = {
+//       name: name || "User",
+//       email,
+//       phone: phone || "",
+//       image: image || "",
+//       role: "user",      // default role 
+//       createdAt: new Date()
+//     };
+
+//     const result = await usersCollection.insertOne(newUser);
+//     res.send({ success: true, userId: result.insertedId });
+    
+//   } catch (error) {
+//     console.error("Error adding user:", error);
+//     res.status(500).send({ error: error.message });
+//   }
+// });
+
 
 
 
@@ -369,20 +470,62 @@ app.put("/orders/update/:id", async (req, res) => {
       }
     });
 
+
+
+    // app.get("/users/:email", async (req, res) => {
+    //   const email = req.params.email;
+    //   try {
+    //     const user = await usersCollection.findOne({ email });
+    //     if (user) {
+    //       res.send({ role: user.role || "user" });
+    //     } else {
+    //       res.send({ role: "user" });
+    //     }
+    //   } catch (error) {
+    //     console.error("❌ Error fetching user role:", error);
+    //     res.status(500).send({ error: error.message });
+    //   }
+    // });
+
+
+
+
+
+
     app.get("/users/:email", async (req, res) => {
-      const email = req.params.email;
-      try {
-        const user = await usersCollection.findOne({ email });
-        if (user) {
-          res.send({ role: user.role || "user" });
-        } else {
-          res.send({ role: "user" });
-        }
-      } catch (error) {
-        console.error("❌ Error fetching user role:", error);
-        res.status(500).send({ error: error.message });
-      }
-    });
+  const email = req.params.email;
+
+  try {
+    const user = await usersCollection.findOne({ email });
+
+    if (!user) {
+      return res.status(404).send({ error: "User not found" });
+    }
+
+    res.send(user);  // 🔥 full user object return করো !!
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+
+
+
+//     app.get("/users/:email", async (req, res) => {
+//   const email = req.params.email;
+//   try {
+//     const user = await usersCollection.findOne({ email });
+//     if (user) {
+//       res.send({ user }); // পুরা user object পাঠানো হচ্ছে
+//     } else {
+//       res.status(404).send({ error: "User not found" });
+//     }
+//   } catch (error) {
+//     console.error("❌ Error fetching user:", error);
+//     res.status(500).send({ error: error.message });
+//   }
+// });
+
 
 
     // ✅ Make user admin
@@ -452,6 +595,160 @@ app.put("/orders/update/:id", async (req, res) => {
 
 
 
+    // ===== Reviews collection =====
+
+
+    // Add review (one review per user per product)
+  // Add a new review
+app.post("/reviews", async (req, res) => {
+  const reviewsCollection = client.db("manstyle").collection("reviews");
+  const review = req.body;
+
+  // review must have productId, userName, userEmail, reviewText, rating
+  if (!review.productId || !review.userName || !review.userEmail || !review.reviewText || !review.rating) {
+
+    console.log("Invalid review received:", review);
+    return res.status(400).send({ success: false, message: "Missing required fields" });
+  }
+
+  review.timestamp = new Date();
+
+  try {
+    const result = await reviewsCollection.insertOne(review);
+    res.send({ success: true, insertedId: result.insertedId });
+  } catch (error) {
+    console.error("Error saving review:", error);
+    res.status(500).send({ success: false, error: error.message });
+  }
+});
+
+
+    // Get reviews for a product (latest first)
+    app.get("/reviews/:productId", async (req, res) => {
+      try {
+        const productId = req.params.productId;
+        const reviews = await reviewsCollection
+          .find({ productId })
+          .sort({ reviewDate: -1 })
+          .toArray();
+        res.send(reviews);
+      } catch (error) {
+        console.error("Get product reviews error:", error);
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+    // Get reviews by user (optional)
+    app.get("/reviews/user/:email", async (req, res) => {
+      try {
+        const email = req.params.email;
+        const reviews = await reviewsCollection.find({ userEmail: email }).toArray();
+        res.send(reviews);
+      } catch (error) {
+        console.error("Get user reviews error:", error);
+        res.status(500).send({ error: error.message });
+      }
+    });
+
+    // Update review (only same user can update) - expects userEmail in body to verify
+    app.patch("/reviews/update/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        if (!ObjectId.isValid(id)) return res.status(400).send({ message: "Invalid review id" });
+
+        const { rating, comment, userEmail } = req.body;
+        if (!userEmail) return res.status(400).send({ message: "userEmail is required to verify ownership" });
+
+        // verify ownership
+        const existing = await reviewsCollection.findOne({ _id: new ObjectId(id) });
+        if (!existing) return res.status(404).send({ message: "Review not found" });
+        if (existing.userEmail !== userEmail) {
+          return res.status(403).send({ message: "You are not allowed to update this review" });
+        }
+
+        const updateDoc = {};
+        if (rating !== undefined) updateDoc.rating = Number(rating);
+        if (comment !== undefined) updateDoc.comment = comment;
+        updateDoc.reviewDate = new Date();
+
+        const result = await reviewsCollection.findOneAndUpdate(
+          { _id: new ObjectId(id) },
+          { $set: updateDoc },
+          { returnDocument: "after" }
+        );
+
+        res.send({ success: true, message: "Review updated", review: result.value });
+      } catch (error) {
+        console.error("Update review error:", error);
+        res.status(500).send({ success: false, error: error.message });
+      }
+    });
+
+    // Delete review (only same user can delete) - expects userEmail in body or query to verify
+    app.delete("/reviews/delete/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        if (!ObjectId.isValid(id)) return res.status(400).send({ message: "Invalid review id" });
+
+        // ownership verification: prefer body.userEmail, fallback to query.userEmail
+        const userEmail = req.body?.userEmail || req.query?.userEmail;
+        if (!userEmail) return res.status(400).send({ message: "userEmail required to verify ownership" });
+
+        const existing = await reviewsCollection.findOne({ _id: new ObjectId(id) });
+        if (!existing) return res.status(404).send({ message: "Review not found" });
+        if (existing.userEmail !== userEmail) {
+          return res.status(403).send({ message: "You are not allowed to delete this review" });
+        }
+
+        const result = await reviewsCollection.deleteOne({ _id: new ObjectId(id) });
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Review not found or already deleted" });
+        }
+
+        res.send({ success: true, message: "Review deleted" });
+      } catch (error) {
+        console.error("Delete review error:", error);
+        res.status(500).send({ success: false, error: error.message });
+      }
+    });
+
+    // Optional: create index for faster product queries (run once)
+    reviewsCollection.createIndex({ productId: 1, userEmail: 1 });
+
+
+
+
+
+
+// Get single order details
+app.get("/orders/details/:id", async (req, res) => {
+  const ordersCollection = client.db("manstyle").collection("orders");
+  const id = req.params.id;
+
+  try {
+    const query = { _id: new ObjectId(id) };
+    const order = await ordersCollection.findOne(query);
+
+    if (!order) {
+      return res.status(404).send({ success: false, message: "Order not found" });
+    }
+
+    res.send({ success: true, order });
+  } catch (error) {
+    console.error("Error fetching order details:", error);
+    res.status(500).send({ success: false, error: error.message });
+  }
+});
+
+
+
+
+
+
+
+
+
+
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
@@ -479,4 +776,3 @@ app.listen(port, () => {
 })
 
 
-// module-68-6 end
