@@ -65,6 +65,48 @@ async function run() {
 
     // man api
 
+
+
+// Products Collection
+// const productsCollection = client.db("man_style").collection("products");
+
+// 🔹 Add New Product API
+app.post("/products", async (req, res) => {
+  try {
+    const product = req.body;
+
+    // Validation: images field expect করা হচ্ছে
+    if (!product.title || !product.price || !product.category || !product.images) {
+      return res.status(400).json({ message: "All fields are required" });
+    }
+
+    // Optional: slug, createdAt, updatedAt auto generate
+    const slug = product.title.toLowerCase().split(" ").join("-");
+    const now = new Date();
+    const productWithMeta = {
+      ...product,
+      slug,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const result = await mansCollection.insertOne(productWithMeta);
+
+    res.send({
+      success: true,
+      insertedId: result.insertedId,
+      message: "Product added successfully",
+    });
+  } catch (error) {
+    console.error("❌ Error adding product:", error);
+    res.status(500).json({ success: false, message: "Failed to add product" });
+  }
+});
+
+
+
+
+
     app.get('/manproducts', async (req, res) => {
 
       const products = mansCollection.find();
@@ -353,6 +395,7 @@ async function run() {
           email,
           phone: phone || "",
           image: image || "",
+          role: "user",      // default role 
           createdAt: new Date()
         };
 
@@ -394,67 +437,10 @@ async function run() {
 
 
 
-    // app.post("/users", async (req, res) => {
-    //   try {
-    //     const user = req.body;
-    //     if (!user.email) return res.status(400).send({ error: "Email is required" });
-
-    //     // আগে check করো user আগে থেকে আছে কি না
-    //     const existingUser = await usersCollection.findOne({ email: user.email });
-    //     if (existingUser) {
-    //       return res.send({ message: "User already exists" });
-    //     }
-
-    //     const result = await usersCollection.insertOne(user);
-    //     res.send({ success: true, userId: result.insertedId });
-    //   } catch (error) {
-    //     console.error("Error adding user:", error);
-    //     res.status(500).send({ error: error.message });
-    //   }
-    // });
 
 
 
-
-
-
-    // app.post("/users", async (req, res) => {
-    //   try {
-    //     const { name, email, phone, image } = req.body;
-
-    //     if (!email) {
-    //       return res.status(400).send({ error: "Email is required" });
-    //     }
-
-    //     // check if user already exists
-    //     const existingUser = await usersCollection.findOne({ email });
-    //     if (existingUser) {
-    //       return res.send({ message: "User already exists" });
-    //     }
-
-    //     // Clean user object
-    //     const newUser = {
-    //       name: name || "User",
-    //       email,
-    //       phone: phone || "",
-    //       image: image || "",
-    //       role: "user",      // default role 
-    //       createdAt: new Date()
-    //     };
-
-    //     const result = await usersCollection.insertOne(newUser);
-    //     res.send({ success: true, userId: result.insertedId });
-
-    //   } catch (error) {
-    //     console.error("Error adding user:", error);
-    //     res.status(500).send({ error: error.message });
-    //   }
-    // });
-
-
-
-
-    app.get("/users", async (req, res) => {
+    app.get("/users",verifyAdmin, async (req, res) => {
       try {
         const search = req.query.search || "";
         const query = {
@@ -476,32 +462,46 @@ async function run() {
 
 
 
-    app.get("/users/:email", async (req, res) => {
-      try {
-        const email = req.params.email;
+    // app.get("/users/:email",async (req, res) => {
+    //   try {
+    //     const email = req.params.email;
 
-        const user = await usersCollection.findOne({ email });
+    //     const user = await usersCollection.findOne({ email });
 
-        if (!user) {
-          return res.status(404).send({ error: "User not found" });
-        }
+    //     if (!user) {
+    //       return res.status(404).send({ error: "User not found" });
+    //     }
 
-        res.send({
-          success: true,
-          user
-        });
-      } catch (error) {
-        console.error("❌ Error fetching user:", error);
-        res.status(500).send({ error: error.message });
-      }
-    });
-
-
+    //     res.send({
+    //       success: true,
+    //       user
+    //     });
+    //   } catch (error) {
+    //     console.error("❌ Error fetching user:", error);
+    //     res.status(500).send({ error: error.message });
+    //   }
+    // });
 
 
 
 
 
+
+
+app.get("/users/:email", async (req, res) => {
+  const email = req.params.email;
+  try {
+    const user = await usersCollection.findOne({ email });
+    if (user) {
+      res.send({ role: user.role || "user" });
+    } else {
+      res.send({ role: "user" });
+    }
+  } catch (error) {
+    console.error("❌ Error fetching user role:", error);
+    res.status(500).send({ error: error.message });
+  }
+});
 
 
 
@@ -527,7 +527,7 @@ async function run() {
 
 
     // ✅ Make user admin (by ID or email)
-    app.put("/users/make-admin/:id", async (req, res) => {
+    app.put("/users/make-admin/:id",verifyAdmin, async (req, res) => {
       try {
         const id = req.params.id;
 
@@ -553,7 +553,7 @@ async function run() {
 
 
 
-    app.put("/users/remove-admin/:id", async (req, res) => {
+    app.put("/users/remove-admin/:id",verifyAdmin, async (req, res) => {
       const { id } = req.params;
       try {
         const result = await usersCollection.updateOne(
