@@ -345,6 +345,34 @@ async function run() {
     });
 
 
+
+    app.get("/today-summary", async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const todayPayments = await ordersCollection.find({
+      date: { $gte: today, $lt: tomorrow }
+    }).toArray();
+
+    const totalSellAmount = todayPayments.reduce((sum, p) => sum + p.amount, 0);
+    const totalSellQuantity = todayPayments.reduce((sum, p) => sum + p.quantity, 0);
+
+    res.send({
+      totalSellAmount,
+      totalSellQuantity,
+      totalOrders: todayPayments.length
+    });
+
+  } catch (err) {
+    res.status(500).send({ error: err.message });
+  }
+});
+
+
     // 💾 1️⃣ পেমেন্ট ইনফো ডাটাবেজে সেভ করা
     app.post("/payments", async (req, res) => {
       try {
