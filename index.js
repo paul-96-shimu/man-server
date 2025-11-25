@@ -67,43 +67,47 @@ async function run() {
 
 
 
-// Products Collection
-// const productsCollection = client.db("man_style").collection("products");
+    // Products Collection
+    // const productsCollection = client.db("man_style").collection("products");
 
-// 🔹 Add New Product API
-app.post("/products", async (req, res) => {
-  try {
-    const product = req.body;
+    // 🔹 Add New Product API
+    app.post("/products", async (req, res) => {
+      try {
+        const product = req.body;
 
-    // Validation: images field expect করা হচ্ছে
-    if (!product.title || !product.price || !product.category || !product.images) {
-      return res.status(400).json({ message: "All fields are required" });
-    }
+        // Validation: images field expect করা হচ্ছে
+        if (!product.title || !product.price || !product.category || !product.images) {
+          return res.status(400).json({ message: "All fields are required" });
+        }
 
-    // Optional: slug, createdAt, updatedAt auto generate
-    const slug = product.title.toLowerCase().split(" ").join("-");
-    const now = new Date();
-    const productWithMeta = {
-      ...product,
-      slug,
-      createdAt: now,
-      updatedAt: now,
-    };
+        // Optional: slug, createdAt, updatedAt auto generate
+        const slug = product.title.toLowerCase().split(" ").join("-");
+        const now = new Date();
+        const productWithMeta = {
+          ...product,
+          slug,
+          createdAt: now,
+          updatedAt: now,
+        };
 
-    const result = await mansCollection.insertOne(productWithMeta);
+        const result = await mansCollection.insertOne(productWithMeta);
 
-    res.send({
-      success: true,
-      insertedId: result.insertedId,
-      message: "Product added successfully",
+        res.send({
+          success: true,
+          insertedId: result.insertedId,
+          message: "Product added successfully",
+        });
+      } catch (error) {
+        console.error("❌ Error adding product:", error);
+        res.status(500).json({ success: false, message: "Failed to add product" });
+      }
     });
-  } catch (error) {
-    console.error("❌ Error adding product:", error);
-    res.status(500).json({ success: false, message: "Failed to add product" });
-  }
-});
 
 
+    app.get("/products", async (req, res) => {
+      const result = await mansCollection.find().toArray();
+      res.send(result);
+    });
 
 
 
@@ -440,7 +444,7 @@ app.post("/products", async (req, res) => {
 
 
 
-    app.get("/users",verifyAdmin, async (req, res) => {
+    app.get("/users", verifyAdmin, async (req, res) => {
       try {
         const search = req.query.search || "";
         const query = {
@@ -488,20 +492,20 @@ app.post("/products", async (req, res) => {
 
 
 
-app.get("/users/:email", async (req, res) => {
-  const email = req.params.email;
-  try {
-    const user = await usersCollection.findOne({ email });
-    if (user) {
-      res.send({ role: user.role || "user" });
-    } else {
-      res.send({ role: "user" });
-    }
-  } catch (error) {
-    console.error("❌ Error fetching user role:", error);
-    res.status(500).send({ error: error.message });
-  }
-});
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      try {
+        const user = await usersCollection.findOne({ email });
+        if (user) {
+          res.send({ role: user.role || "user" });
+        } else {
+          res.send({ role: "user" });
+        }
+      } catch (error) {
+        console.error("❌ Error fetching user role:", error);
+        res.status(500).send({ error: error.message });
+      }
+    });
 
 
 
@@ -527,7 +531,7 @@ app.get("/users/:email", async (req, res) => {
 
 
     // ✅ Make user admin (by ID or email)
-    app.put("/users/make-admin/:id",verifyAdmin, async (req, res) => {
+    app.put("/users/make-admin/:id", verifyAdmin, async (req, res) => {
       try {
         const id = req.params.id;
 
@@ -553,7 +557,7 @@ app.get("/users/:email", async (req, res) => {
 
 
 
-    app.put("/users/remove-admin/:id",verifyAdmin, async (req, res) => {
+    app.put("/users/remove-admin/:id", verifyAdmin, async (req, res) => {
       const { id } = req.params;
       try {
         const result = await usersCollection.updateOne(
@@ -745,22 +749,22 @@ app.get("/users/:email", async (req, res) => {
 
     // PUT /addresses/:id
 
-app.put("/addresses/:id", async (req, res) => {
-  try {
-    const id = new ObjectId(req.params.id);
-    const updateData = req.body;
+    app.put("/addresses/:id", async (req, res) => {
+      try {
+        const id = new ObjectId(req.params.id);
+        const updateData = req.body;
 
-    const result = await addressesCollection.findOneAndUpdate(
-      { _id: id },
-      { $set: updateData },
-      { returnDocument: "after" } // 🔥 returns updated document
-    );
+        const result = await addressesCollection.findOneAndUpdate(
+          { _id: id },
+          { $set: updateData },
+          { returnDocument: "after" } // 🔥 returns updated document
+        );
 
-    res.send(result.value); // send updated address back to frontend
-  } catch (err) {
-    res.status(500).send({ error: err.message });
-  }
-});
+        res.send(result.value); // send updated address back to frontend
+      } catch (err) {
+        res.status(500).send({ error: err.message });
+      }
+    });
 
     app.delete("/addresses/:id", async (req, res) => {
       const id = new ObjectId(req.params.id);
