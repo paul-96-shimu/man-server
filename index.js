@@ -9,12 +9,27 @@ const stripe = require("stripe")(process.env.PAYMENT_GETWAY_KEY);
 // password-0JGiJW5ep5YTH1SM
 // username-man_style
 
+const cors = require("cors");
+
+app.use(cors({
+  origin: [
+    "http://localhost:5173",                     // Local dev
+    "https://y-three-blond.vercel.app",         // Vercel frontend
+    "https://zingy-paletas-aa1b55.netlify.app" // Netlify frontend
+  ],
+  methods: "GET,POST,PUT,DELETE",
+  credentials: true
+}));
+
+app.use(express.json());
 
 // middleware
 app.use(cors({
   origin: [
-    "http://localhost:5173",                // লোকালহোস্ট
-    "https://y-three-blond.vercel.app"      // Vercel frontend
+    "http://localhost:5173",                
+    "https://y-three-blond.vercel.app",
+    "https://zingy-paletas-aa1b55.netlify.app"
+          // Vercel frontend
   ],
   methods: "GET,POST,PUT,DELETE",
   credentials: true
