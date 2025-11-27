@@ -11,7 +11,14 @@ const stripe = require("stripe")(process.env.PAYMENT_GETWAY_KEY);
 
 
 // middleware
-app.use(cors())
+app.use(cors({
+  origin: [
+    "http://localhost:5173",                // লোকালহোস্ট
+    "https://y-three-blond.vercel.app"      // Vercel frontend
+  ],
+  methods: "GET,POST,PUT,DELETE",
+  credentials: true
+}));
 
 app.use(express.json());
 
@@ -472,7 +479,7 @@ async function run() {
 
 
 
-    app.get("/users", verifyAdmin, async (req, res) => {
+    app.get("/users", async (req, res) => {
       try {
         const search = req.query.search || "";
         const query = {
